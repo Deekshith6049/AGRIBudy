@@ -24,9 +24,12 @@ interface OverviewSectionProps {
     lightIntensity: number;
   };
   isConnected: boolean;
+  loading?: boolean;
+  error?: string | null;
+  lastUpdated?: string | null;
 }
 
-export function OverviewSection({ sensorData, isConnected }: OverviewSectionProps) {
+export function OverviewSection({ sensorData, isConnected, loading, error, lastUpdated }: OverviewSectionProps) {
   const alerts = [
     { type: "warning", message: "Soil moisture below optimal range in Zone A", time: "5 min ago" },
     { type: "info", message: "Fertilizer application scheduled for tomorrow", time: "1 hour ago" },
@@ -85,8 +88,14 @@ export function OverviewSection({ sensorData, isConnected }: OverviewSectionProp
                 {isConnected ? "All Systems Online" : "ESP32 Disconnected"}
               </Badge>
               <p className="text-sm text-muted-foreground">
-                {isConnected 
-                  ? "All sensors reporting normally. Last update: 30 seconds ago"
+                {loading 
+                  ? "Loading sensor data..."
+                  : error
+                  ? `Error: ${error}`
+                  : isConnected 
+                  ? lastUpdated 
+                    ? `All sensors reporting normally. Last update: ${new Date(lastUpdated).toLocaleTimeString()}`
+                    : "All sensors reporting normally"
                   : "Check your ESP32 connection and network settings"
                 }
               </p>

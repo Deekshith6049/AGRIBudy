@@ -25,12 +25,12 @@ interface SidebarProps {
 
 const navigationItems = [
   { id: "overview", label: "Dashboard Overview", icon: Home },
+  { id: "data-visualization", label: "Data Visualization", icon: BarChart3 },
   { id: "soil-fatigue", label: "Soil Fatigue Predictor", icon: Leaf },
   { id: "fertilizer", label: "Smart Fertilizer System", icon: Truck },
   { id: "pest-detection", label: "Pest Detection", icon: Bug },
   { id: "plant-emotion", label: "Plant Health Monitor", icon: Thermometer },
   { id: "shadow-optimizer", label: "Growth Optimizer", icon: Sun },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "chat", label: "AI Assistant", icon: MessageCircle },
 ];
 
@@ -48,7 +48,7 @@ export function Sidebar({ isCollapsed, onToggle, activeSection, onSectionChange 
             {!isCollapsed && (
               <div className="flex items-center gap-2">
                 <Sprout className="h-6 w-6 text-primary" />
-                <span className="font-semibold text-foreground">AgriSmart</span>
+                <span className="font-semibold text-foreground">AGRIBuddy</span>
               </div>
             )}
             <Button

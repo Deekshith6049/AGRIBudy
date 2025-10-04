@@ -14,7 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      Soil_data: {
+        Row: {
+          id: number
+          monitored_at: string
+          temperature: number
+          humidity: number
+          soil_moisture: number
+          pest_detected: boolean
+        }
+        Insert: {
+          id?: number
+          monitored_at?: string
+          temperature: number
+          humidity: number
+          soil_moisture: number
+          pest_detected?: boolean
+        }
+        Update: {
+          id?: number
+          monitored_at?: string
+          temperature?: number
+          humidity?: number
+          soil_moisture?: number
+          pest_detected?: boolean
+        }
+      }
     }
     Views: {
       [_ in never]: never

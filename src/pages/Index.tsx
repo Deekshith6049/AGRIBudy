@@ -2,36 +2,58 @@ import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Sidebar } from "@/components/Sidebar";
 import { OverviewSection } from "@/components/dashboard-sections/OverviewSection";
+import { DataVisualizationSection } from "@/components/dashboard-sections/DataVisualizationSection";
 import { SoilFatigueSection } from "@/components/dashboard-sections/SoilFatigueSection";
 import { FertilizerSection } from "@/components/dashboard-sections/FertilizerSection";
 import { PestDetectionSection } from "@/components/dashboard-sections/PestDetectionSection";
 import { PlantEmotionSection } from "@/components/dashboard-sections/PlantEmotionSection";
 import { ShadowOptimizerSection } from "@/components/dashboard-sections/ShadowOptimizerSection";
 import { ChatSection } from "@/components/dashboard-sections/ChatSection";
+import { useSensorData } from "@/hooks/useSensorData";
 import { cn } from "@/lib/utils";
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
 
-  // Mock sensor data - in real implementation, this would come from your ESP32 via Supabase
-  const sensorData = {
-    temperature: 25.3,
-    humidity: 68,
-    soilMoisture: 45,
+  // Real-time sensor data from Supabase
+  const { data: sensorDataRaw, loading, error, isConnected, lastUpdated } = useSensorData();
+
+  // Transform data to match component interface
+  const sensorData = sensorDataRaw ? {
+    temperature: sensorDataRaw.temperature,
+    humidity: sensorDataRaw.humidity,
+    soilMoisture: sensorDataRaw.soil_moisture,
+    ph: 6.8, // Default value since this column doesn't exist
+    nitrogen: 75, // Default value since this column doesn't exist
+    phosphorus: 45, // Default value since this column doesn't exist
+    potassium: 200, // Default value since this column doesn't exist
+    lightIntensity: 35000, // Default value since this column doesn't exist
+  } : {
+    temperature: 0,
+    humidity: 0,
+    soilMoisture: 0,
     ph: 6.8,
     nitrogen: 75,
-    phosphorus: 42,
-    potassium: 220,
+    phosphorus: 45,
+    potassium: 200,
     lightIntensity: 35000,
   };
-
-  const isConnected = true; // Mock connection status
 
   const renderActiveSection = () => {
     switch (activeSection) {
       case "overview":
-        return <OverviewSection sensorData={sensorData} isConnected={isConnected} />;
+        return (
+          <OverviewSection 
+            sensorData={sensorData} 
+            isConnected={isConnected}
+            loading={loading}
+            error={error}
+            lastUpdated={lastUpdated}
+          />
+        );
+      case "data-visualization":
+        return <DataVisualizationSection />;
       case "soil-fatigue":
         return <SoilFatigueSection />;
       case "fertilizer":
@@ -45,7 +67,15 @@ const Index = () => {
       case "chat":
         return <ChatSection />;
       default:
-        return <OverviewSection sensorData={sensorData} isConnected={isConnected} />;
+        return (
+          <OverviewSection 
+            sensorData={sensorData} 
+            isConnected={isConnected}
+            loading={loading}
+            error={error}
+            lastUpdated={lastUpdated}
+          />
+        );
     }
   };
 
