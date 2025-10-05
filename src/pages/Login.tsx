@@ -84,7 +84,7 @@ const Login = () => {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-gray-800">
-              Smart Agro Insight
+              AGRIBuddy
             </CardTitle>
             <CardDescription className="text-gray-600">
               Sign in to access your agricultural dashboard
