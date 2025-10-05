@@ -19,10 +19,8 @@ interface ChatResponse {
  * Automatically fetches real-time sensor data from Supabase
  */
 export async function sendChatMessage({ message, language, mode }: ChatRequest): Promise<ChatResponse> {
+  // Supabase Edge Function
   try {
-    console.log('Sending chat message (edge only):', { message, language, mode });
-
-    // Use direct fetch to the provided function URL to avoid any SDK routing issues
     const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
       method: 'POST',
       headers: {
@@ -39,19 +37,33 @@ export async function sendChatMessage({ message, language, mode }: ChatRequest):
     }
 
     const data = await response.json();
-
     if (!data) {
       throw new Error('No response from AI');
     }
-
-    console.log('Chat response received from edge');
     return data as ChatResponse;
   } catch (error) {
     console.error('LLM Client Error:', error);
-    if (error instanceof Error) {
-      throw error;
+    // Fallback: build a helpful local response with latest sensor data
+    try {
+      const { data: latest } = await supabase
+        .from('Soil_data')
+        .select('*')
+        .order('monitored_at', { ascending: false })
+        .limit(1);
+
+      const latestRow = latest?.[0] || null;
+      const dataContext = latestRow
+        ? `Temperature: ${latestRow.temperature}°C, Humidity: ${latestRow.humidity}%, Soil Moisture: ${latestRow.soil_moisture}%`
+        : 'No recent sensor data available';
+
+      return {
+        response: getFallbackResponse(message, language, dataContext),
+        sensorData: latestRow,
+      };
+    } catch (_) {
+      if (error instanceof Error) throw error;
+      throw new Error('Failed to get AI response. Please try again.');
     }
-    throw new Error('Failed to get AI response. Please try again.');
   }
 }
 
@@ -106,4 +118,23 @@ function getFallbackResponse(message: string, language: Language, dataContext: s
 
   const lang = responses[language];
   return `${lang.greeting}${lang.data}${lang.help} ${lang.note}`;
+}
+
+// Build a local fallback response using latest sensor data
+export async function buildLocalFallback(message: string, language: Language): Promise<ChatResponse> {
+  const { data: latest } = await supabase
+    .from('Soil_data')
+    .select('*')
+    .order('monitored_at', { ascending: false })
+    .limit(1);
+
+  const latestRow = latest?.[0] || null;
+  const dataContext = latestRow
+    ? `Temperature: ${latestRow.temperature}°C, Humidity: ${latestRow.humidity}%, Soil Moisture: ${latestRow.soil_moisture}%`
+    : 'No recent sensor data available';
+
+  return {
+    response: getFallbackResponse(message, language, dataContext),
+    sensorData: latestRow,
+  };
 }

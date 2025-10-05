@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
@@ -33,7 +34,7 @@ serve(async (req) => {
     const { data: sensorData } = await supabase
       .from("Soil_data")
       .select("*")
-      .order("timestamp", { ascending: false })
+      .order("monitored_at", { ascending: false })
       .limit(1);
 
     const dataContext = sensorData?.length
@@ -48,30 +49,46 @@ Context: ${dataContext}`;
     let audioBase64: string | null = null;
 
     // Use Hugging Face Inference for text generation
-    const HF_API_KEY = Deno.env.get("HUGGING_FACE_API_KEY");
+    const HF_API_KEY =
+      Deno.env.get("HUGGING_FACE_API_KEY") ||
+      Deno.env.get("HUGGINGFACE_API_KEY") ||
+      Deno.env.get("HF_API_KEY");
     if (!HF_API_KEY) {
       throw new Error("HUGGING_FACE_API_KEY not configured");
     }
 
-    // Text generation with mosaicml/mpt-7b-chat
+    // Text generation with HF models (fallback chain to avoid 404s)
     const textInputs = `${systemPrompt}\n\nUser (${language}): ${message}`;
-    const tgRes = await fetch("https://api-inference.huggingface.co/models/mosaicml/mpt-7b-chat", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: textInputs,
-        parameters: { max_new_tokens: 256, temperature: 0.7 },
-        options: { wait_for_model: true },
-      }),
-    });
-    if (!tgRes.ok) {
-      const errText = await tgRes.text();
-      throw new Error(`HF text-generation error: ${tgRes.status} ${errText}`);
+    const modelCandidates = [
+      "mosaicml/mpt-7b-chat",
+      "google/gemma-2b-it",
+      "tiiuae/falcon-7b-instruct",
+    ];
+    let tgOk = false;
+    let tgData: any = null;
+    for (const modelName of modelCandidates) {
+      const tgRes = await fetch(`https://api-inference.huggingface.co/models/${modelName}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${HF_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: textInputs,
+          parameters: { max_new_tokens: 256, temperature: 0.7 },
+          options: { wait_for_model: true },
+        }),
+      });
+      if (tgRes.ok) {
+        tgData = await tgRes.json();
+        tgOk = true;
+        break;
+      }
+      // try next model on 4xx/5xx
     }
-    const tgData = await tgRes.json();
+    if (!tgOk) {
+      throw new Error("HF text-generation error: no candidate model responded OK");
+    }
     if (Array.isArray(tgData) && tgData[0]?.generated_text) {
       aiResponse = tgData[0].generated_text as string;
     } else if (typeof tgData === "object" && tgData?.generated_text) {
@@ -79,6 +96,29 @@ Context: ${dataContext}`;
     } else {
       // Fallback parse for some model returns
       aiResponse = (tgData?.[0]?.summary_text || tgData?.[0]?.text || "I could not process your request.") as string;
+    }
+
+    // Ensure Telugu output: if Telugu requested but response appears ASCII/English, translate
+    if (language === "te" && aiResponse && /^[\x00-\x7F]*$/.test(aiResponse)) {
+      try {
+        const trRes = await fetch("https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-en-te", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${HF_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ inputs: aiResponse, options: { wait_for_model: true } }),
+        });
+        if (trRes.ok) {
+          const trData = await trRes.json();
+          const translated = Array.isArray(trData) ? trData[0]?.translation_text : trData?.translation_text;
+          if (translated && typeof translated === "string") {
+            aiResponse = translated as string;
+          }
+        }
+      } catch (_) {
+        // ignore translation failures
+      }
     }
 
     // Optional TTS via facebook/mms-tts (language-specific submodels differ).

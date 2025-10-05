@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useSpeechAgent } from '@/hooks/useSpeechAgent';
-import { sendChatMessage, getGreeting, getPlaceholder, type Language, type AIMode } from '@/utils/llmClient';
+import { sendChatMessage, buildLocalFallback, getGreeting, getPlaceholder, type Language, type AIMode } from '@/utils/llmClient';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -119,12 +119,24 @@ export function AIChatAgent() {
           errorMessage = error.message;
         }
       }
-      
-      toast({
-        title: 'AI Assistant Error',
-        description: errorMessage,
-        variant: 'destructive'
-      });
+
+      // As a last resort in production (Lovable), build a local fallback
+      try {
+        const fb = await buildLocalFallback(userMsg.text, language);
+        const aiMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          text: fb.response,
+          sender: 'ai',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiMsg]);
+      } catch (_) {
+        toast({
+          title: 'AI Assistant Error',
+          description: errorMessage,
+          variant: 'destructive'
+        });
+      }
     } finally {
       setIsLoading(false);
     }
