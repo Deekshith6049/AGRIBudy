@@ -52,6 +52,8 @@ export function useSpeechAgent({ language, onTranscript }: UseSpeechAgentProps) 
       recognition.lang = languageMap[language];
       recognition.start();
       setIsListening(true);
+    } else if (!recognition) {
+      console.warn('Speech recognition not available in this browser');
     }
   }, [recognition, isListening, language]);
 

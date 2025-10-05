@@ -36,16 +36,7 @@ export function AIChatAgent() {
     }
   });
 
-  // Show warning if speech is not supported
-  useEffect(() => {
-    if (!isSupported) {
-      toast({
-        title: "Speech Recognition Not Supported",
-        description: "Your browser doesn't support speech recognition. You can still type messages.",
-        variant: "default",
-      });
-    }
-  }, [isSupported, toast]);
+  // Don't show warning immediately - only when user tries to use speech
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -138,7 +129,15 @@ export function AIChatAgent() {
     if (isListening) {
       stopListening();
     } else {
-      startListening();
+      if (isSupported) {
+        startListening();
+      } else {
+        toast({
+          title: "Speech Recognition Not Available",
+          description: "Your browser doesn't support speech recognition. You can still type messages.",
+          variant: "default",
+        });
+      }
     }
   };
 
