@@ -106,10 +106,10 @@ export function AIChatAgent() {
       let errorMessage = 'Failed to get AI response';
       
       if (error instanceof Error) {
-        if (error.message.includes('Failed to invoke AI chat function')) {
-          errorMessage = 'AI service is not configured. Please add API keys to Supabase.';
-        } else if (error.message.includes('Function not found')) {
-          errorMessage = 'AI function is not deployed. Please check Supabase Edge Functions.';
+        if (error.message.toLowerCase().includes('edge')) {
+          errorMessage = 'Edge function failed. Please check Supabase → Edge Functions → ai-chat → Logs.';
+        } else if (error.message.toLowerCase().includes('no response')) {
+          errorMessage = 'AI did not return a response. Try again in a moment.';
         } else {
           errorMessage = error.message;
         }
