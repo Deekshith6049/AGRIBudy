@@ -15,13 +15,21 @@ serve(async (req) => {
   try {
     const { message, language = 'en', mode = 'gemini' } = await req.json();
     
+    console.log('AI Chat request:', { message, language, mode });
+    
     if (!message) {
       throw new Error('Message is required');
     }
 
     // Initialize Supabase client to fetch real-time data
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase environment variables');
+      throw new Error('Server configuration error');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch latest sensor data
@@ -42,10 +50,20 @@ serve(async (req) => {
 
     if (mode === 'gemini') {
       const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+      console.log('GEMINI_API_KEY present:', !!GEMINI_API_KEY);
+      
       if (!GEMINI_API_KEY) {
-        throw new Error('GEMINI_API_KEY not configured');
+        console.error('GEMINI_API_KEY not configured');
+        return new Response(
+          JSON.stringify({ error: 'GEMINI_API_KEY not configured. Please add it in Supabase Secrets.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        );
       }
 
+      console.log('Calling Gemini API...');
       const geminiResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
         {
@@ -59,16 +77,33 @@ serve(async (req) => {
         }
       );
 
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error('Gemini API error:', geminiResponse.status, errorText);
+        throw new Error(`Gemini API error: ${geminiResponse.status}`);
+      }
+
       const geminiData = await geminiResponse.json();
+      console.log('Gemini response received');
       aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'I could not process your request.';
 
     } else {
       // OpenAI mode
       const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+      console.log('OPENAI_API_KEY present:', !!OPENAI_API_KEY);
+      
       if (!OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY not configured');
+        console.error('OPENAI_API_KEY not configured');
+        return new Response(
+          JSON.stringify({ error: 'OPENAI_API_KEY not configured. Please add it in Supabase Secrets.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        );
       }
 
+      console.log('Calling OpenAI API...');
       const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -86,7 +121,14 @@ serve(async (req) => {
         }),
       });
 
+      if (!openaiResponse.ok) {
+        const errorText = await openaiResponse.text();
+        console.error('OpenAI API error:', openaiResponse.status, errorText);
+        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+      }
+
       const openaiData = await openaiResponse.json();
+      console.log('OpenAI response received');
       aiResponse = openaiData.choices?.[0]?.message?.content || 'I could not process your request.';
     }
 

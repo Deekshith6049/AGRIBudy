@@ -20,16 +20,29 @@ interface ChatResponse {
  */
 export async function sendChatMessage({ message, language, mode }: ChatRequest): Promise<ChatResponse> {
   try {
+    console.log('Sending chat message:', { message, language, mode });
+    
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: { message, language, mode }
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase function error:', error);
+      throw new Error(error.message || 'Failed to invoke AI chat function');
+    }
 
+    if (!data) {
+      throw new Error('No response from AI');
+    }
+
+    console.log('Chat response received');
     return data as ChatResponse;
   } catch (error) {
     console.error('LLM Client Error:', error);
-    throw new Error('Failed to get AI response. Please check your API keys in Supabase secrets.');
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to get AI response. Please try again.');
   }
 }
 

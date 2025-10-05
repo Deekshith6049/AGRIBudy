@@ -100,9 +100,11 @@ export function AIChatAgent() {
       }
 
     } catch (error) {
+      console.error('AI Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response';
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to get AI response',
+        title: 'AI Assistant Error',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
