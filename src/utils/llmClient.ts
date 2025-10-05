@@ -1,6 +1,6 @@
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 
-export type AIMode = 'gemini' | 'openai';
+export type AIMode = 'gemini' | 'openai' | 'hf';
 export type Language = 'en' | 'te' | 'hi';
 
 interface ChatRequest {

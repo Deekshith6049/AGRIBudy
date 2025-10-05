@@ -1,126 +1,122 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// File: supabase/functions/ai-chat/index.ts
+// Deploy using: supabase functions deploy ai-chat --no-verify-jwt
+
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-serve(async (req)=>{
+
+serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
+
   try {
-    const { message, language = "en", mode = "gemini" } = await req.json();
-    console.log("AI Chat Request:", {
-      message,
-      language,
-      mode
-    });
-    if (!message) throw new Error("Message is required.");
-    // Supabase credentials
+    const { message, language = "en", mode = "hf" } = await req.json();
+    if (!message) {
+      return new Response(JSON.stringify({ error: "Message is required" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Supabase real-time context
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !supabaseKey) throw new Error("Missing Supabase environment variables.");
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    // Fetch latest data
-    const { data: sensorData, error: dbError } = await supabase.from("Soil_data").select("*").order("timestamp", {
-      ascending: false
-    }).limit(1);
-    if (dbError) console.error("DB Error:", dbError);
-    const dataContext = sensorData?.length ? `Latest field data — Temperature: ${sensorData[0].temperature}°C, Humidity: ${sensorData[0].humidity}%, Soil Moisture: ${sensorData[0].soil_moisture}%, Pest: ${sensorData[0].pest_detected ? "Detected" : "Not Detected"}.` : "No recent sensor data available.";
-    const systemPrompt = `
-You are an intelligent multilingual agricultural assistant for Smart Agro Insight.
-You monitor soil, humidity, temperature, and pest data and give actionable, natural advice.
-Languages supported: English, Telugu, Hindi.
-Current farm info: ${dataContext}
-Be clear, helpful, and conversational.
-`;
-    let aiResponse = "";
-    if (mode === "gemini") {
-      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-      if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured.");
-      console.log("Querying Gemini API (v1 gemini-1.5-flash)...");
-      const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `${systemPrompt}\n\nUser (${language}): ${message}`
-                }
-              ]
-            }
-          ]
-        })
-      });
-      if (!geminiResponse.ok) {
-        const errText = await geminiResponse.text();
-        console.error("Gemini Error:", geminiResponse.status, errText);
-        throw new Error(`Gemini API error: ${geminiResponse.status} ${errText}`);
-      }
-      const geminiData = await geminiResponse.json();
-      aiResponse = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn’t generate a response right now.";
-    } else {
-      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-      if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured.");
-      console.log("Querying OpenAI...");
-      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            },
-            {
-              role: "user",
-              content: message
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 300
-        })
-      });
-      if (!openaiResponse.ok) {
-        const errText = await openaiResponse.text();
-        console.error("OpenAI Error:", openaiResponse.status, errText);
-        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
-      }
-      const openaiData = await openaiResponse.json();
-      aiResponse = openaiData?.choices?.[0]?.message?.content || "Sorry, I couldn’t generate a response right now.";
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Missing Supabase environment variables");
     }
-    return new Response(JSON.stringify({
-      response: aiResponse,
-      sensorData: sensorData?.[0] || null
-    }), {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: sensorData } = await supabase
+      .from("Soil_data")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .limit(1);
+
+    const dataContext = sensorData?.length
+      ? `Latest field data — Temperature: ${sensorData[0].temperature}°C, Humidity: ${sensorData[0].humidity}%, Soil Moisture: ${sensorData[0].soil_moisture}%.`
+      : "No recent sensor data available.";
+
+    const systemPrompt = `You are a multilingual agricultural assistant (English, Telugu, Hindi).
+Use the farm context to give concise, helpful advice.
+Context: ${dataContext}`;
+
+    let aiResponse = "";
+    let audioBase64: string | null = null;
+
+    // Use Hugging Face Inference for text generation
+    const HF_API_KEY = Deno.env.get("HUGGING_FACE_API_KEY");
+    if (!HF_API_KEY) {
+      throw new Error("HUGGING_FACE_API_KEY not configured");
+    }
+
+    // Text generation with mosaicml/mpt-7b-chat
+    const textInputs = `${systemPrompt}\n\nUser (${language}): ${message}`;
+    const tgRes = await fetch("https://api-inference.huggingface.co/models/mosaicml/mpt-7b-chat", {
+      method: "POST",
       headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${HF_API_KEY}`,
+        "Content-Type": "application/json",
       },
-      status: 200
+      body: JSON.stringify({
+        inputs: textInputs,
+        parameters: { max_new_tokens: 256, temperature: 0.7 },
+        options: { wait_for_model: true },
+      }),
     });
-  } catch (error) {
-    console.error("AI Chat Error:", error);
-    return new Response(JSON.stringify({
-      error: error.message
-    }), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      },
-      status: 500
-    });
+    if (!tgRes.ok) {
+      const errText = await tgRes.text();
+      throw new Error(`HF text-generation error: ${tgRes.status} ${errText}`);
+    }
+    const tgData = await tgRes.json();
+    if (Array.isArray(tgData) && tgData[0]?.generated_text) {
+      aiResponse = tgData[0].generated_text as string;
+    } else if (typeof tgData === "object" && tgData?.generated_text) {
+      aiResponse = tgData.generated_text as string;
+    } else {
+      // Fallback parse for some model returns
+      aiResponse = (tgData?.[0]?.summary_text || tgData?.[0]?.text || "I could not process your request.") as string;
+    }
+
+    // Optional TTS via facebook/mms-tts (language-specific submodels differ).
+    // We'll map en/te/hi to closest supported voices if available; otherwise skip audio.
+    const langToModel: Record<string, string> = {
+      en: "facebook/mms-tts-eng",
+      te: "facebook/mms-tts-tel",
+      hi: "facebook/mms-tts-hin",
+    };
+    const ttsModel = langToModel[language];
+    if (ttsModel) {
+      const ttsRes = await fetch(`https://api-inference.huggingface.co/models/${ttsModel}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${HF_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs: aiResponse, options: { wait_for_model: true } }),
+      });
+      if (ttsRes.ok) {
+        // HF can return binary audio; fetch as arrayBuffer then base64 encode
+        const ab = await ttsRes.arrayBuffer();
+        const bytes = new Uint8Array(ab);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        audioBase64 = btoa(binary);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ response: aiResponse, sensorData: sensorData?.[0] || null, audioBase64 }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+    );
+  } catch (err) {
+    console.error("AI Chat Error:", err);
+    return new Response(
+      JSON.stringify({ error: err?.message || String(err) }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 },
+    );
   }
 });

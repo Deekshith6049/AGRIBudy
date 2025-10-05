@@ -23,7 +23,7 @@ export function AIChatAgent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [language, setLanguage] = useState<Language>('en');
-  const [aiMode, setAiMode] = useState<AIMode>('gemini');
+  const [aiMode, setAiMode] = useState<AIMode>('hf');
   const [isLoading, setIsLoading] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -74,7 +74,7 @@ export function AIChatAgent() {
     setIsLoading(true);
 
     try {
-      const { response, sensorData } = await sendChatMessage({
+      const { response, sensorData, audioBase64 } = await sendChatMessage({
         message: inputText,
         language,
         mode: aiMode
@@ -90,7 +90,12 @@ export function AIChatAgent() {
       setMessages(prev => [...prev, aiMsg]);
       
       if (autoSpeak) {
-        speak(response);
+        if (audioBase64) {
+          const audio = new Audio(`data:audio/wav;base64,${audioBase64}`);
+          audio.play();
+        } else {
+          speak(response);
+        }
       }
 
       // Show sensor data in toast if relevant
@@ -196,6 +201,7 @@ export function AIChatAgent() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="hf">HuggingFace</SelectItem>
             <SelectItem value="gemini">Gemini</SelectItem>
             <SelectItem value="openai">OpenAI</SelectItem>
           </SelectContent>
