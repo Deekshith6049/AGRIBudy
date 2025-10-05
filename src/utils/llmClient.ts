@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 
 export type AIMode = 'gemini' | 'openai';
 export type Language = 'en' | 'te' | 'hi';
@@ -22,14 +22,23 @@ export async function sendChatMessage({ message, language, mode }: ChatRequest):
   try {
     console.log('Sending chat message (edge only):', { message, language, mode });
 
-    const { data, error } = await supabase.functions.invoke('ai-chat', {
-      body: { message, language, mode }
+    // Use direct fetch to the provided function URL to avoid any SDK routing issues
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ message, language, mode })
     });
 
-    if (error) {
-      console.error('Supabase edge function error:', error);
-      throw new Error(error.message || 'Edge function failed');
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Edge function HTTP ${response.status}: ${text}`);
     }
+
+    const data = await response.json();
 
     if (!data) {
       throw new Error('No response from AI');
