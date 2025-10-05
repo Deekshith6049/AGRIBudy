@@ -36,6 +36,17 @@ export function AIChatAgent() {
     }
   });
 
+  // Show warning if speech is not supported
+  useEffect(() => {
+    if (!isSupported) {
+      toast({
+        title: "Speech Recognition Not Supported",
+        description: "Your browser doesn't support speech recognition. You can still type messages.",
+        variant: "default",
+      });
+    }
+  }, [isSupported, toast]);
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
@@ -101,7 +112,18 @@ export function AIChatAgent() {
 
     } catch (error) {
       console.error('AI Chat error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response';
+      let errorMessage = 'Failed to get AI response';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to invoke AI chat function')) {
+          errorMessage = 'AI service is not configured. Please add API keys to Supabase.';
+        } else if (error.message.includes('Function not found')) {
+          errorMessage = 'AI function is not deployed. Please check Supabase Edge Functions.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: 'AI Assistant Error',
         description: errorMessage,
