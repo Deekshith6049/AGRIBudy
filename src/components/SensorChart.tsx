@@ -56,9 +56,6 @@ export function SensorChart({ sensorType, title, unit, color, hours = 24 }: Sens
   }));
 
   const formatValue = (value: number) => {
-    if (sensorType === 'light_intensity') {
-      return Math.round(value).toLocaleString();
-    }
     return value.toFixed(1);
   };
 

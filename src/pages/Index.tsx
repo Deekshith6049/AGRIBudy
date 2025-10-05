@@ -9,6 +9,7 @@ import { PestDetectionSection } from "@/components/dashboard-sections/PestDetect
 import { PlantEmotionSection } from "@/components/dashboard-sections/PlantEmotionSection";
 import { ShadowOptimizerSection } from "@/components/dashboard-sections/ShadowOptimizerSection";
 import { ChatSection } from "@/components/dashboard-sections/ChatSection";
+import { AIChatAgent } from "@/components/AIChatAgent";
 import { useSensorData } from "@/hooks/useSensorData";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +106,9 @@ const Index = () => {
           </div>
         </main>
       </div>
+
+      {/* AI Chat Agent - Floating across all pages */}
+      <AIChatAgent />
     </div>
   );
 };
