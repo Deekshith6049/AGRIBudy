@@ -22,21 +22,45 @@ export async function sendChatMessage({ message, language, mode }: ChatRequest):
   try {
     console.log('Sending chat message:', { message, language, mode });
     
-    const { data, error } = await supabase.functions.invoke('ai-chat', {
-      body: { message, language, mode }
-    });
+    // First try the edge function
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-chat', {
+        body: { message, language, mode }
+      });
 
-    if (error) {
-      console.error('Supabase function error:', error);
-      throw new Error(error.message || 'Failed to invoke AI chat function');
+      if (error) {
+        console.warn('Edge function error, falling back to direct response:', error);
+        throw new Error('Edge function not available');
+      }
+
+      if (!data) {
+        throw new Error('No response from AI');
+      }
+
+      console.log('Chat response received');
+      return data as ChatResponse;
+    } catch (edgeError) {
+      console.log('Edge function not available, using fallback response');
+      
+      // Fallback: Return a helpful response without AI
+      const { data: sensorData } = await supabase
+        .from('Soil_data')
+        .select('*')
+        .order('monitored_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const dataContext = sensorData 
+        ? `Current sensor data: Temperature: ${sensorData.temperature}°C, Humidity: ${sensorData.humidity}%, Soil Moisture: ${sensorData.soil_moisture}%`
+        : 'No sensor data available';
+
+      const fallbackResponse = getFallbackResponse(message, language, dataContext);
+      
+      return {
+        response: fallbackResponse,
+        sensorData: sensorData || null
+      };
     }
-
-    if (!data) {
-      throw new Error('No response from AI');
-    }
-
-    console.log('Chat response received');
-    return data as ChatResponse;
   } catch (error) {
     console.error('LLM Client Error:', error);
     if (error instanceof Error) {
@@ -68,4 +92,33 @@ export function getPlaceholder(language: Language): string {
     hi: "मिट्टी, तापमान, नमी के बारे में पूछें..."
   };
   return placeholders[language];
+}
+
+/**
+ * Get fallback response when AI is not available
+ */
+function getFallbackResponse(message: string, language: Language, dataContext: string): string {
+  const responses = {
+    en: {
+      greeting: "Hello! I'm your Smart Agro assistant. ",
+      data: `Here's your current sensor data: ${dataContext}. `,
+      help: "I can help you monitor your farm data. Try asking about temperature, humidity, or soil moisture.",
+      note: "Note: AI features are being set up. You can still view your sensor data!"
+    },
+    te: {
+      greeting: "నమస్కారం! నేను మీ స్మార్ట్ అగ్రో సహాయకుడిని. ",
+      data: `మీ ప్రస్తుత సెన్సార్ డేటా: ${dataContext}. `,
+      help: "నేను మీ పొల డేటాను పర్యవేక్షించడంలో సహాయపడగలను. ఉష్ణోగ్రత, తేమ లేదా మట్టి తేమ గురించి అడగండి.",
+      note: "గమనిక: AI లక్షణాలు సెటప్ చేయబడుతున్నాయి. మీరు ఇప్పటికీ మీ సెన్సార్ డేటాను చూడవచ్చు!"
+    },
+    hi: {
+      greeting: "नमस्ते! मैं आपका स्मार्ट एग्रो सहायक हूं। ",
+      data: `आपका वर्तमान सेंसर डेटा: ${dataContext}. `,
+      help: "मैं आपके खेत के डेटा की निगरानी में मदद कर सकता हूं। तापमान, नमी या मिट्टी की नमी के बारे में पूछें।",
+      note: "नोट: AI सुविधाएं सेटअप की जा रही हैं। आप अभी भी अपना सेंसर डेटा देख सकते हैं!"
+    }
+  };
+
+  const lang = responses[language];
+  return `${lang.greeting}${lang.data}${lang.help} ${lang.note}`;
 }
