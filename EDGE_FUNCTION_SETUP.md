@@ -21,20 +21,19 @@ Your AI chat agent now works with a **fallback system** that provides helpful re
 
 ### Step 2: Add API Keys
 1. Go to **Settings** → **Edge Functions** → **Secrets**
-2. Add these secrets:
-   - `GEMINI_API_KEY` = Your Gemini API key (free)
-   - `OPENAI_API_KEY` = Your OpenAI API key (optional)
+2. Add this secret:
+   - `HUGGING_FACE_API_KEY` = Your Hugging Face Inference token
 
-### Step 3: Get Free Gemini API Key
-1. Visit: https://makersuite.google.com/app/apikey
-2. Create new API key
-3. Add to Supabase Secrets as `GEMINI_API_KEY`
+### Step 3: Get a Hugging Face API Token
+1. Visit: https://huggingface.co/settings/tokens
+2. Create a token with **Read** access
+3. Add to Supabase Secrets as `HUGGING_FACE_API_KEY`
 
 ## Benefits of Edge Function
 - **Real AI responses** instead of fallback
 - **Context-aware** agricultural advice
 - **Advanced language processing**
-- **Cost-effective** with Gemini free tier
+- **Runs entirely on Hugging Face Inference (no OpenAI/Gemini keys)**
 
 ## Current Fallback Features
 Even without the edge function, you get:

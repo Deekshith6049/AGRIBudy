@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, language = "en", mode = "hf" } = await req.json();
+    const { message, language = "en" } = await req.json();
     if (!message) {
       return new Response(JSON.stringify({ error: "Message is required" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

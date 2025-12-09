@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useSpeechAgent } from '@/hooks/useSpeechAgent';
-import { sendChatMessage, buildLocalFallback, getGreeting, getPlaceholder, type Language, type AIMode } from '@/utils/llmClient';
+import { sendChatMessage, buildLocalFallback, getGreeting, getPlaceholder, type Language } from '@/utils/llmClient';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,6 @@ export function AIChatAgent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [language, setLanguage] = useState<Language>('en');
-  const [aiMode, setAiMode] = useState<AIMode>('hf');
   const [isLoading, setIsLoading] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -76,8 +75,7 @@ export function AIChatAgent() {
     try {
       const { response, sensorData, audioBase64 } = await sendChatMessage({
         message: inputText,
-        language,
-        mode: aiMode
+        language
       });
 
       const aiMsg: Message = {
@@ -181,7 +179,7 @@ export function AIChatAgent() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              {aiMode === 'gemini' ? '🌟 Gemini' : '🤖 GPT'}
+              🤗 Hugging Face
             </Badge>
             <Button
               variant="ghost"
@@ -205,17 +203,6 @@ export function AIChatAgent() {
             <SelectItem value="en">English</SelectItem>
             <SelectItem value="te">తెలుగు</SelectItem>
             <SelectItem value="hi">हिंदी</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={aiMode} onValueChange={(val) => setAiMode(val as AIMode)}>
-          <SelectTrigger className="w-28 h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="hf">HuggingFace</SelectItem>
-            <SelectItem value="gemini">Gemini</SelectItem>
-            <SelectItem value="openai">OpenAI</SelectItem>
           </SelectContent>
         </Select>
 

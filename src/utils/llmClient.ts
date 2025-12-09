@@ -1,12 +1,10 @@
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 
-export type AIMode = 'gemini' | 'openai' | 'hf';
 export type Language = 'en' | 'te' | 'hi';
 
 interface ChatRequest {
   message: string;
   language: Language;
-  mode: AIMode;
 }
 
 interface ChatResponse {
@@ -18,7 +16,7 @@ interface ChatResponse {
  * Send a message to the AI chat agent
  * Automatically fetches real-time sensor data from Supabase
  */
-export async function sendChatMessage({ message, language, mode }: ChatRequest): Promise<ChatResponse> {
+export async function sendChatMessage({ message, language }: ChatRequest): Promise<ChatResponse> {
   // Supabase Edge Function
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
@@ -28,7 +26,7 @@ export async function sendChatMessage({ message, language, mode }: ChatRequest):
         'apikey': SUPABASE_PUBLISHABLE_KEY,
         'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ message, language, mode })
+      body: JSON.stringify({ message, language })
     });
 
     if (!response.ok) {

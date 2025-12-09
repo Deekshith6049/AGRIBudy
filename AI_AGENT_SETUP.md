@@ -5,23 +5,16 @@ Your Smart Agro Insight dashboard now includes a **multilingual AI talking assis
 - 🗣️ Speak and listen in **English, Telugu (తెలుగు), and Hindi (हिंदी)**
 - 📊 Access real-time IoT sensor data from Supabase
 - 🌾 Provide agricultural insights and recommendations
-- 🔄 Switch between Gemini and OpenAI models
+- 🤗 Run on a single Hugging Face model pipeline (no OpenAI/Gemini keys needed)
 
 ---
 
-## 🔑 Required API Keys
+## 🔑 Required API Key
 
-You need to add **at least one** of these API keys to your Supabase project:
-
-### Option 1: Google Gemini (Recommended - Free Tier Available)
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Add to Supabase Secrets as: **`GEMINI_API_KEY`**
-
-### Option 2: OpenAI
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create a new API key
-3. Add to Supabase Secrets as: **`OPENAI_API_KEY`**
+Only a Hugging Face Inference API key is needed:
+1. Go to [Hugging Face Settings → Access Tokens](https://huggingface.co/settings/tokens)
+2. Create a token with **Read** access
+3. Add to Supabase Secrets as: **`HUGGING_FACE_API_KEY`** (or `HUGGINGFACE_API_KEY` / `HF_API_KEY`)
 
 ---
 
@@ -30,9 +23,9 @@ You need to add **at least one** of these API keys to your Supabase project:
 ### Method 1: Using Supabase Dashboard
 1. Go to your Supabase project dashboard
 2. Navigate to **Settings** → **Edge Functions** → **Secrets**
-3. Add your API key(s):
-   - Name: `GEMINI_API_KEY` or `OPENAI_API_KEY`
-   - Value: Your API key
+3. Add your API key:
+   - Name: `HUGGING_FACE_API_KEY`
+   - Value: Your Hugging Face token
 
 ### Method 2: Using Supabase CLI (if you have it installed)
 ```bash
@@ -55,9 +48,8 @@ supabase secrets set OPENAI_API_KEY=your_key_here
 - **తెలుగు (Telugu)** - Native speech & text
 - **हिंदी (Hindi)** - Native speech & text
 
-### 🤖 AI Modes
-- **Gemini** - Google's latest AI model (Default)
-- **OpenAI** - GPT-4o-mini for enhanced responses
+### 🤖 AI Model
+- **Hugging Face** - Default and only model path (no model switching needed)
 
 ### 📊 Data-Aware Responses
 The AI can answer questions about your farm data:
@@ -88,7 +80,7 @@ supabase/functions/ai-chat/index.ts  # Backend edge function
 ### Edge Function Endpoint
 - **URL**: `https://<project-ref>.supabase.co/functions/v1/ai-chat`
 - **Method**: POST
-- **Body**: `{ message: string, language: 'en'|'te'|'hi', mode: 'gemini'|'openai' }`
+- **Body**: `{ message: string, language: 'en'|'te'|'hi' }`
 
 ### Browser Compatibility
 - **Speech Recognition**: Chrome, Edge, Safari
@@ -145,9 +137,7 @@ supabase/functions/ai-chat/index.ts  # Backend edge function
 
 ## 💰 Cost Considerations
 
-- **Gemini**: Free tier: 60 requests/minute
-- **OpenAI**: Pay-as-you-go pricing
-- Agent only calls API when you send a message (no auto-polling)
+- **Hugging Face Inference**: Pay attention to your plan limits; the agent calls the API only when you send a message (no auto-polling)
 
 ---
 
