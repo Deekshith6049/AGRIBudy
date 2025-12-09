@@ -1,37 +1,26 @@
 import { Bell, Settings, User, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-
 interface DashboardHeaderProps {
   onMenuClick: () => void;
   farmerName: string;
 }
-
-export function DashboardHeader({ onMenuClick, farmerName }: DashboardHeaderProps) {
-  const { user, logout } = useAuth();
-
+export function DashboardHeader({
+  onMenuClick,
+  farmerName
+}: DashboardHeaderProps) {
+  const {
+    user,
+    logout
+  } = useAuth();
   const handleLogout = () => {
     logout();
   };
-
-  return (
-    <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+  return <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="flex h-16 items-center px-4 gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMenuClick}
-          className="md:hidden"
-        >
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
           <Menu className="h-5 w-5" />
         </Button>
         
@@ -39,7 +28,7 @@ export function DashboardHeader({ onMenuClick, farmerName }: DashboardHeaderProp
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">AG</span>
           </div>
-          <h1 className="text-xl font-bold text-foreground">AGRIBuddy </h1>
+          <h1 className="text-xl font-bold text-foreground">AGRIBudy</h1>
         </div>
 
         <div className="ml-auto flex items-center gap-4">
@@ -84,6 +73,5 @@ export function DashboardHeader({ onMenuClick, farmerName }: DashboardHeaderProp
           </DropdownMenu>
         </div>
       </div>
-    </header>
-  );
+    </header>;
 }
