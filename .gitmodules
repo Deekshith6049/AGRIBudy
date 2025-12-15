@@ -1,0 +1,3 @@
+[submodule "agribuddy-backend"]
+	path = agribuddy-backend
+	url = https://github.com/Deekshith6049/agribuddy-backend.git

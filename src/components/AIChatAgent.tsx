@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Mic, MicOff, Volume2, VolumeX, Globe } from 'lucide-react';
+import { MessageCircle, X, Send, Mic, MicOff, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { useSpeechAgent } from '@/hooks/useSpeechAgent';
-import { sendChatMessage, buildLocalFallback, getGreeting, getPlaceholder, type Language } from '@/utils/llmClient';
+import { sendChatMessage, getGreeting, getPlaceholder } from '@/utils/llmClient';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -22,14 +22,14 @@ export function AIChatAgent() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [language, setLanguage] = useState<Language>('en');
   const [isLoading, setIsLoading] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(false); // Default OFF
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { isListening, isSpeaking, startListening, stopListening, speak, stopSpeaking, isSupported } = useSpeechAgent({
-    language,
+    language: 'en', // backend handles detection
     onTranscript: (text) => {
       setInputText(text);
     }
@@ -49,17 +49,58 @@ export function AIChatAgent() {
     if (isOpen && messages.length === 0) {
       const welcomeMsg: Message = {
         id: Date.now().toString(),
-        text: getGreeting(language),
+        text: getGreeting(),
         sender: 'ai',
         timestamp: new Date()
       };
       setMessages([welcomeMsg]);
-      if (autoSpeak) speak(welcomeMsg.text);
     }
   }, [isOpen]);
 
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const stopCurrentAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+  };
+
+  const playAudio = async (audioUrl: string) => {
+    try {
+      stopCurrentAudio();
+      const fullAudioUrl = audioUrl.startsWith('http')
+        ? audioUrl
+        : `https://agribuddy-backend.onrender.com${audioUrl}`;
+      const audio = new Audio(fullAudioUrl);
+      audioRef.current = audio;
+      await audio.play();
+      audio.addEventListener('ended', () => {
+        audioRef.current = null;
+      });
+      audio.addEventListener('error', () => {
+        audioRef.current = null;
+      });
+    } catch (error) {
+      console.error('Failed to play audio:', error);
+      audioRef.current = null;
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
+
+    // Stop any current audio before sending
+    stopCurrentAudio();
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -73,35 +114,26 @@ export function AIChatAgent() {
     setIsLoading(true);
 
     try {
-      const { response, sensorData, audioBase64 } = await sendChatMessage({
+      const response = await sendChatMessage({
         message: inputText,
-        language
+        voice: audioEnabled
       });
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
-        text: response,
+        text: response.reply_text,
         sender: 'ai',
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, aiMsg]);
       
-      if (autoSpeak) {
-        if (audioBase64) {
-          const audio = new Audio(`data:audio/wav;base64,${audioBase64}`);
-          audio.play();
-        } else {
-          speak(response);
-        }
+      if (audioEnabled && response.audio_url) {
+        await playAudio(response.audio_url);
       }
 
-      // Show sensor data in toast if relevant
-      if (sensorData && inputText.toLowerCase().includes('sensor')) {
-        toast({
-          title: 'Current Sensor Data',
-          description: `Temp: ${sensorData.temperature}°C | Humidity: ${sensorData.humidity}% | Soil: ${sensorData.soil_moisture}%`
-        });
+      if (!audioEnabled) {
+        stopCurrentAudio();
       }
 
     } catch (error) {
@@ -109,8 +141,8 @@ export function AIChatAgent() {
       let errorMessage = 'Failed to get AI response';
       
       if (error instanceof Error) {
-        if (error.message.toLowerCase().includes('edge')) {
-          errorMessage = 'Edge function failed. Please check Supabase → Edge Functions → ai-chat → Logs.';
+        if (error.message.includes('HTTP')) {
+          errorMessage = `Connection error: ${error.message}`;
         } else if (error.message.toLowerCase().includes('no response')) {
           errorMessage = 'AI did not return a response. Try again in a moment.';
         } else {
@@ -118,23 +150,11 @@ export function AIChatAgent() {
         }
       }
 
-      // As a last resort in production (Lovable), build a local fallback
-      try {
-        const fb = await buildLocalFallback(userMsg.text, language);
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          text: fb.response,
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMsg]);
-      } catch (_) {
-        toast({
-          title: 'AI Assistant Error',
-          description: errorMessage,
-          variant: 'destructive'
-        });
-      }
+      toast({
+        title: 'AI Assistant Error',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +199,7 @@ export function AIChatAgent() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">
-              🤗 Hugging Face
+              🤖 AGRIBudy AI
             </Badge>
             <Button
               variant="ghost"
@@ -194,31 +214,23 @@ export function AIChatAgent() {
       </CardHeader>
 
       <div className="px-4 py-2 border-b bg-muted/30 flex items-center justify-between gap-2">
-        <Select value={language} onValueChange={(val) => setLanguage(val as Language)}>
-          <SelectTrigger className="w-32 h-8 text-xs">
-            <Globe className="w-3 h-3 mr-1" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="en">English</SelectItem>
-            <SelectItem value="te">తెలుగు</SelectItem>
-            <SelectItem value="hi">हिंदी</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setAutoSpeak(!autoSpeak)}
-          className="h-8 w-8"
-        >
-          {autoSpeak ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Volume2 className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Voice Output</span>
+        </div>
+        <Switch
+          checked={audioEnabled}
+          onCheckedChange={(next) => {
+            setAudioEnabled(next);
+            if (!next) stopCurrentAudio();
+          }}
+          className="scale-110"
+        />
       </div>
 
       <CardContent className="flex-1 p-0 overflow-hidden">
         <ScrollArea className="h-full p-4" ref={scrollRef}>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-visible">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -229,7 +241,7 @@ export function AIChatAgent() {
               >
                 <div
                   className={cn(
-                    "max-w-[80%] px-4 py-2 rounded-2xl text-sm",
+                    "max-w-[80%] px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words overflow-visible leading-relaxed",
                     msg.sender === 'user'
                       ? 'bg-primary text-primary-foreground rounded-br-none'
                       : 'bg-muted text-foreground rounded-bl-none'
@@ -242,10 +254,13 @@ export function AIChatAgent() {
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-muted px-4 py-2 rounded-2xl rounded-bl-none">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">AGRIBudy AI is analyzing live sensor data. Please wait…</span>
                   </div>
                 </div>
               </div>
@@ -259,8 +274,13 @@ export function AIChatAgent() {
           <Input
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder={getPlaceholder(language)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            placeholder={getPlaceholder()}
             disabled={isLoading}
             className="flex-1 text-sm"
           />
