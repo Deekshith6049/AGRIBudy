@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import {
   Bug,
   Eye,
@@ -12,8 +20,17 @@ import {
   Camera,
   Waves,
   Shield,
-  Zap
+  Zap,
+  ImageOff
 } from "lucide-react";
+
+type SoilData = Tables<"Soil_data">;
+
+type PestImageRecord = {
+  id: SoilData["id"];
+  monitored_at: SoilData["monitored_at"];
+  pest_image_url: string | null;
+};
 
 interface PestAlert {
   id: string;
@@ -29,6 +46,11 @@ export function PestDetectionSection() {
   const [systemActive, setSystemActive] = useState(true);
   const [vibrationSensitivity, setVibrationSensitivity] = useState(75);
   const [autoResponse, setAutoResponse] = useState(false);
+  const [pestImages, setPestImages] = useState<PestImageRecord[]>([]);
+  const [loadingImages, setLoadingImages] = useState(true);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<PestImageRecord | null>(null);
+  const [imageLoadErrorIds, setImageLoadErrorIds] = useState<Record<string, boolean>>({});
 
   const recentAlerts: PestAlert[] = [
     {
@@ -77,6 +99,73 @@ export function PestDetectionSection() {
       default: return <Bug className="h-4 w-4" />;
     }
   };
+
+  const handleImageError = (id: string) => {
+    setImageLoadErrorIds((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const formatTimeAgo = (timestamp: string | null | undefined) => {
+    if (!timestamp) return "Unknown time";
+
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Unknown time";
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+
+    const diffSeconds = Math.floor(diffMs / 1000);
+    if (diffSeconds < 60) return "Just now";
+
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `${diffMinutes} min ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPestImages = async () => {
+      try {
+        setLoadingImages(true);
+        setImageError(null);
+
+        const { data, error } = await supabase
+          .from("Soil_data")
+          .select("id, monitored_at, pest_image_url")
+          .not("pest_image_url", "is", null)
+          .neq("pest_image_url", "")
+          .order("monitored_at", { ascending: false })
+          .limit(6);
+
+        if (error) {
+          throw error;
+        }
+
+        if (isMounted) {
+          setPestImages((data ?? []) as PestImageRecord[]);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setImageError(err instanceof Error ? err.message : "Failed to load pest images");
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingImages(false);
+        }
+      }
+    };
+
+    fetchPestImages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -236,44 +325,198 @@ export function PestDetectionSection() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {recentAlerts.map((alert) => (
-              <div key={alert.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {getTypeIcon(alert.type)}
-                    <span className="font-medium">{alert.pestType || "Unknown Pest"}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge className={getSeverityColor(alert.severity)}>
-                      {alert.severity} risk
-                    </Badge>
-                    <Badge variant="outline">
-                      {alert.confidence}% confidence
-                    </Badge>
-                  </div>
+          <div className="space-y-4">
+            {loadingImages && (
+              <p className="text-sm text-muted-foreground">
+                Loading recent pest images...
+              </p>
+            )}
+
+            {!loadingImages && imageError && (
+              <p className="text-sm text-destructive">
+                {imageError}
+              </p>
+            )}
+
+            {!loadingImages && !imageError && pestImages.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No recent pest images available.
+              </p>
+            )}
+
+            {!loadingImages && !imageError && pestImages.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  {pestImages.slice(0, 3).map((record) => {
+                    const recordId = String(record.id);
+                    const hasError = imageLoadErrorIds[recordId];
+
+                    return (
+                      <div
+                        key={recordId}
+                        className="border rounded-lg p-3 flex flex-col md:flex-row gap-3 bg-muted/30"
+                      >
+                        <button
+                          type="button"
+                          className="relative w-full md:w-40 overflow-hidden rounded-md bg-muted flex items-center justify-center"
+                          onClick={() => {
+                            if (!hasError && record.pest_image_url) {
+                              setSelectedImage(record);
+                            }
+                          }}
+                        >
+                          {!hasError && record.pest_image_url ? (
+                            <img
+                              src={record.pest_image_url}
+                              alt="Pest detection"
+                              loading="lazy"
+                            onError={() => handleImageError(recordId)}
+                              className="max-h-[150px] w-auto object-cover md:w-full"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground gap-2">
+                              <ImageOff className="h-6 w-6" />
+                              <span className="text-xs">Image unavailable</span>
+                            </div>
+                          )}
+                        </button>
+
+                        <div className="flex-1 flex flex-col justify-between text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {getTypeIcon("visual")}
+                              <span className="font-medium">
+                                Camera Pest Detection
+                              </span>
+                            </div>
+                            <Badge className={getSeverityColor("medium")}>
+                              medium risk
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-auto pt-1">
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeAgo(record.monitored_at)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                if (!hasError && record.pest_image_url) {
+                                  setSelectedImage(record);
+                                }
+                              }}
+                            >
+                              View Image
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><strong>Location:</strong> {alert.location}</p>
-                    <p><strong>Detection Type:</strong> {alert.type}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{alert.timestamp}</span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
-                        View Details
-                      </Button>
-                      <Button size="sm" variant="destructive">
-                        <Zap className="h-4 w-4 mr-1" />
-                        Respond
-                      </Button>
-                    </div>
-                  </div>
+
+                <div className="space-y-4">
+                  {pestImages.slice(3, 6).map((record) => {
+                    const recordId = String(record.id);
+                    const hasError = imageLoadErrorIds[recordId];
+
+                    return (
+                      <div
+                        key={recordId}
+                        className="border rounded-lg p-3 flex flex-col md:flex-row gap-3 bg-muted/30"
+                      >
+                        <button
+                          type="button"
+                          className="relative w-full md:w-40 overflow-hidden rounded-md bg-muted flex items-center justify-center"
+                          onClick={() => {
+                            if (!hasError && record.pest_image_url) {
+                              setSelectedImage(record);
+                            }
+                          }}
+                        >
+                          {!hasError && record.pest_image_url ? (
+                            <img
+                              src={record.pest_image_url}
+                              alt="Pest detection"
+                              loading="lazy"
+                            onError={() => handleImageError(recordId)}
+                              className="max-h-[150px] w-auto object-cover md:w-full"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground gap-2">
+                              <ImageOff className="h-6 w-6" />
+                              <span className="text-xs">Image unavailable</span>
+                            </div>
+                          )}
+                        </button>
+
+                        <div className="flex-1 flex flex-col justify-between text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {getTypeIcon("visual")}
+                              <span className="font-medium">
+                                Camera Pest Detection
+                              </span>
+                            </div>
+                            <Badge className={getSeverityColor("medium")}>
+                              medium risk
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-auto pt-1">
+                            <span className="text-xs text-muted-foreground">
+                              {formatTimeAgo(record.monitored_at)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                if (!hasError && record.pest_image_url) {
+                                  setSelectedImage(record);
+                                }
+                              }}
+                            >
+                              View Image
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
+            )}
           </div>
+
+          <Dialog
+            open={!!selectedImage}
+            onOpenChange={(open) => {
+              if (!open) {
+                setSelectedImage(null);
+              }
+            }}
+          >
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Pest Image Preview</DialogTitle>
+              </DialogHeader>
+              {selectedImage && selectedImage.pest_image_url && (
+                <div className="mt-2 space-y-2">
+                  <div className="w-full max-h-[80vh] flex items-center justify-center overflow-hidden rounded-lg bg-muted">
+                    <img
+                      src={selectedImage.pest_image_url}
+                      alt="Pest detection full size"
+                      className="max-h-[80vh] w-auto object-contain"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Captured {formatTimeAgo(selectedImage.monitored_at)}
+                  </p>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
 

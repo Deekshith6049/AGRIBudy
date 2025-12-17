@@ -22,6 +22,7 @@ export type Database = {
           humidity: number
           soil_moisture: number
           pest_detected: boolean
+          pest_image_url: string | null
         }
         Insert: {
           id?: number
@@ -30,6 +31,7 @@ export type Database = {
           humidity: number
           soil_moisture: number
           pest_detected?: boolean
+          pest_image_url?: string | null
         }
         Update: {
           id?: number
@@ -38,6 +40,7 @@ export type Database = {
           humidity?: number
           soil_moisture?: number
           pest_detected?: boolean
+          pest_image_url?: string | null
         }
       }
     }
