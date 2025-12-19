@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Home, Leaf, Droplets, Bug, Thermometer, Sun, MessageCircle, BarChart3, Settings, ChevronLeft, Sprout, Truck } from "lucide-react";
+import { Home, Leaf, Droplets, Bug, BarChart3, Settings, ChevronLeft, Sprout } from "lucide-react";
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
@@ -21,25 +21,9 @@ const navigationItems = [{
   label: "Soil Fatigue Predictor",
   icon: Leaf
 }, {
-  id: "fertilizer",
-  label: "Smart Fertilizer System",
-  icon: Truck
-}, {
   id: "pest-detection",
   label: "Pest Detection",
   icon: Bug
-}, {
-  id: "plant-emotion",
-  label: "Plant Health Monitor",
-  icon: Thermometer
-}, {
-  id: "shadow-optimizer",
-  label: "Growth Optimizer",
-  icon: Sun
-}, {
-  id: "chat",
-  label: "AI Assistant",
-  icon: MessageCircle
 }];
 export function Sidebar({
   isCollapsed,

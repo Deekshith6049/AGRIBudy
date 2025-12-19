@@ -4,11 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { OverviewSection } from "@/components/dashboard-sections/OverviewSection";
 import { DataVisualizationSection } from "@/components/dashboard-sections/DataVisualizationSection";
 import { SoilFatigueSection } from "@/components/dashboard-sections/SoilFatigueSection";
-import { FertilizerSection } from "@/components/dashboard-sections/FertilizerSection";
 import { PestDetectionSection } from "@/components/dashboard-sections/PestDetectionSection";
-import { PlantEmotionSection } from "@/components/dashboard-sections/PlantEmotionSection";
-import { ShadowOptimizerSection } from "@/components/dashboard-sections/ShadowOptimizerSection";
-import { ChatSection } from "@/components/dashboard-sections/ChatSection";
 import { AIChatAgent } from "@/components/AIChatAgent";
 import { useSensorData } from "@/hooks/useSensorData";
 import { cn } from "@/lib/utils";
@@ -57,16 +53,8 @@ const Index = () => {
         return <DataVisualizationSection />;
       case "soil-fatigue":
         return <SoilFatigueSection />;
-      case "fertilizer":
-        return <FertilizerSection />;
       case "pest-detection":
         return <PestDetectionSection />;
-      case "plant-emotion":
-        return <PlantEmotionSection />;
-      case "shadow-optimizer":
-        return <ShadowOptimizerSection />;
-      case "chat":
-        return <ChatSection />;
       default:
         return (
           <OverviewSection 
