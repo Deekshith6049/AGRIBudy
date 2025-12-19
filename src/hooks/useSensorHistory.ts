@@ -34,7 +34,7 @@ export function useSensorHistory(options: UseSensorHistoryOptions = {}): UseSens
       // Base query: select needed columns and filter by time window
       let query = supabase
         .from('Soil_data')
-        .select('id, monitored_at, temperature, humidity, soil_moisture, pest_detected, soil_ph, nitrogen, phosphorus, potassium')
+        .select('id, monitored_at, temperature, humidity, soil_moisture, pest_detected, pest_image_url, soil_ph, nitrogen, phosphorus, potassium')
         .gte('monitored_at', hoursAgo.toISOString());
 
       // If sensorType provided, exclude NULLs for that column so each chart fetches its own valid rows

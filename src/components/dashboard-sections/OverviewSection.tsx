@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,67 +29,77 @@ interface OverviewSectionProps {
   lastUpdated?: string | null;
 }
 
+// Utility function to get relative time
+const getRelativeTime = (timestamp: string | null): string => {
+  if (!timestamp) return "Just now";
+  
+  const now = new Date();
+  const time = new Date(timestamp);
+  const diffMs = now.getTime() - time.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+};
+
 export function OverviewSection({ sensorData, isConnected, loading, error, lastUpdated }: OverviewSectionProps) {
-  const [pestSeverity, setPestSeverity] = useState<string | null>(null);
-  const [pestSeverityLoading, setPestSeverityLoading] = useState(true);
+  // Generate alerts based on sensor data
+  const generateAlerts = () => {
+    const alerts = [];
+    const relativeTime = getRelativeTime(lastUpdated);
 
-  // Fetch latest pest severity from backend
-  useEffect(() => {
-    let isMounted = true;
-    const BACKEND_URL = 'https://agribuddy-backend.onrender.com';
-
-    const fetchPestSeverity = async () => {
-      try {
-        setPestSeverityLoading(true);
-        const response = await fetch(`${BACKEND_URL}/api/pest-severity`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch pest severity");
-        }
-        const data = await response.json();
-        if (isMounted) {
-          setPestSeverity(data.pest_severity || null);
-        }
-      } catch (err) {
-        console.error("Error fetching pest severity:", err);
-        if (isMounted) {
-          setPestSeverity(null);
-        }
-      } finally {
-        if (isMounted) {
-          setPestSeverityLoading(false);
-        }
-      }
-    };
-
-    fetchPestSeverity();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Base alerts (existing ones)
-  const baseAlerts = [
-    { type: "warning", message: "Soil moisture below optimal range in Zone A", time: "5 min ago" },
-    { type: "info", message: "Fertilizer application scheduled for tomorrow", time: "1 hour ago" },
-    { type: "success", message: "Pest detection system online", time: "2 hours ago" },
-  ];
-
-  // Create pest severity alert if available
-  const pestAlert = pestSeverity && pestSeverity !== "UNKNOWN" ? (() => {
-    const severity = pestSeverity.toUpperCase();
-    if (severity === "LOW") {
-      return { type: "success", message: "Low pest activity detected. Monitoring ongoing.", time: "Just now", icon: "🟢" };
-    } else if (severity === "MEDIUM") {
-      return { type: "warning", message: "Moderate pest activity detected. Preventive action advised.", time: "Just now", icon: "🟡" };
-    } else if (severity === "HIGH") {
-      return { type: "error", message: "High pest risk detected. Immediate intervention required.", time: "Just now", icon: "🔴" };
+    // A. Soil Moisture Alert
+    if (sensorData.soilMoisture !== null && (sensorData.soilMoisture === 0 || sensorData.soilMoisture < 25)) {
+      alerts.push({
+        type: "warning",
+        message: "Soil moisture below optimal range",
+        time: relativeTime,
+        icon: null
+      });
     }
-    return null;
-  })() : null;
 
-  // Combine alerts: pest alert first (if exists), then base alerts
-  const alerts = pestAlert ? [pestAlert, ...baseAlerts] : baseAlerts;
+    // B. Soil pH Alert
+    if (sensorData.ph !== null && (sensorData.ph < 5.5 || sensorData.ph > 7.5)) {
+      alerts.push({
+        type: "warning",
+        message: "Soil pH out of optimal range",
+        time: relativeTime,
+        icon: null
+      });
+    }
+
+    // C. Nutrient Alert (NPK combined)
+    if (
+      (sensorData.nitrogen !== null && sensorData.nitrogen < 50) ||
+      (sensorData.phosphorus !== null && sensorData.phosphorus < 30) ||
+      (sensorData.potassium !== null && sensorData.potassium < 100)
+    ) {
+      alerts.push({
+        type: "info",
+        message: "Soil nutrient imbalance detected",
+        time: relativeTime,
+        icon: null
+      });
+    }
+
+    // Fill remaining slots with system-status alerts if needed
+    const systemAlerts = [
+      { type: "success", message: "Pest detection system online", time: relativeTime, icon: null },
+      { type: "success", message: "Sensor data streaming active", time: relativeTime, icon: null }
+    ];
+
+    while (alerts.length < 3 && systemAlerts.length > 0) {
+      alerts.push(systemAlerts.shift()!);
+    }
+
+    return alerts.slice(0, 3); // Ensure exactly 3 alerts
+  };
+
+  const alerts = generateAlerts();
 
   return (
     <div className="space-y-6">

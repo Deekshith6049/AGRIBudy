@@ -1,73 +1,65 @@
-# Welcome to your Lovable project
+# AGRIBudy
 
-## Project info
+Smart Agriculture Monitoring System built with modern web technologies.
 
-**URL**: https://lovable.dev/projects/aafdebd4-b52a-48d9-9fbb-bab743a763ba
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/aafdebd4-b52a-48d9-9fbb-bab743a763ba) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Technologies Used
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Vite** - Fast build tool and development server
+- **TypeScript** - Type-safe JavaScript
+- **React** - UI library
+- **shadcn-ui** - Modern UI components
+- **Tailwind CSS** - Utility-first CSS framework
+- **Supabase** - Backend as a service for database and authentication
 
-## How can I deploy this project?
+## Getting Started
 
-Simply open [Lovable](https://lovable.dev/projects/aafdebd4-b52a-48d9-9fbb-bab743a763ba) and click on Share -> Publish.
+### Prerequisites
 
-## Can I connect a custom domain to my Lovable project?
+- Node.js & npm installed ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
 
-Yes, you can!
+### Installation
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. Clone the repository:
+```sh
+git clone <YOUR_GIT_URL>
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+2. Navigate to the project directory:
+```sh
+cd AGRIBudy
+```
+
+3. Install dependencies:
+```sh
+npm install
+```
+
+4. Start the development server:
+```sh
+npm run dev
+```
+
+## Project Structure
+
+- `src/` - Main application code
+  - `components/` - Reusable UI components
+  - `pages/` - Page components
+  - `hooks/` - Custom React hooks
+  - `integrations/` - External service integrations
+  - `lib/` - Utility libraries
+- `backend/` - Python backend code
+- `supabase/` - Database configuration and functions
+
+## Features
+
+- Real-time sensor data visualization
+- AI-powered agricultural insights
+- User authentication and authorization
+- Responsive dashboard interface
+- Soil and environmental monitoring
+
+## Deployment
+
+The application can be deployed to various platforms supporting React applications. Ensure to configure environment variables for Supabase connection.
