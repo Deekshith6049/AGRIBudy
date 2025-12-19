@@ -23,6 +23,10 @@ export type Database = {
           soil_moisture: number
           pest_detected: boolean
           pest_image_url: string | null
+          soil_ph: number | null
+          nitrogen: number | null
+          phosphorus: number | null
+          potassium: number | null
         }
         Insert: {
           id?: number
@@ -32,6 +36,10 @@ export type Database = {
           soil_moisture: number
           pest_detected?: boolean
           pest_image_url?: string | null
+          soil_ph?: number | null
+          nitrogen?: number | null
+          phosphorus?: number | null
+          potassium?: number | null
         }
         Update: {
           id?: number
@@ -41,6 +49,10 @@ export type Database = {
           soil_moisture?: number
           pest_detected?: boolean
           pest_image_url?: string | null
+          soil_ph?: number | null
+          nitrogen?: number | null
+          phosphorus?: number | null
+          potassium?: number | null
         }
       }
     }

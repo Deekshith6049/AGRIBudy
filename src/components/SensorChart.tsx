@@ -6,7 +6,7 @@ import { AlertCircle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface SensorChartProps {
-  sensorType: keyof Pick<Tables<'Soil_data'>, 'temperature' | 'humidity' | 'soil_moisture'>;
+  sensorType: keyof Pick<Tables<'Soil_data'>, 'temperature' | 'humidity' | 'soil_moisture' | 'soil_ph' | 'nitrogen' | 'phosphorus' | 'potassium'>;
   title: string;
   unit: string;
   color: string;
@@ -14,7 +14,8 @@ interface SensorChartProps {
 }
 
 export function SensorChart({ sensorType, title, unit, color, hours = 24 }: SensorChartProps) {
-  const { data, loading, error } = useSensorHistory({ hours });
+  // Fetch only rows where the specific sensor column is NOT NULL, limit to latest 20 entries
+  const { data, loading, error } = useSensorHistory({ hours, limit: 20, sensorType });
 
   if (loading) {
     return (
@@ -45,17 +46,28 @@ export function SensorChart({ sensorType, title, unit, color, hours = 24 }: Sens
     );
   }
 
-  // Transform data for chart
-  const chartData = data.map((item) => ({
-    time: new Date(item.monitored_at).toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    }),
-    value: item[sensorType],
-    fullTime: item.monitored_at
-  }));
+  // Transform data for chart, handling possible nulls safely
+  const chartData = data.map((item) => {
+    const rawValue = item[sensorType];
+    const numericValue =
+      typeof rawValue === "number"
+        ? rawValue
+        : rawValue == null
+        ? null
+        : Number(rawValue);
 
-  const formatValue = (value: number) => {
+    return {
+      time: new Date(item.monitored_at).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
+      value: numericValue,
+      fullTime: item.monitored_at
+    };
+  });
+
+  const formatValue = (value: number | null | undefined) => {
+    if (value == null || Number.isNaN(value)) return "–";
     return value.toFixed(1);
   };
 
@@ -65,7 +77,10 @@ export function SensorChart({ sensorType, title, unit, color, hours = 24 }: Sens
         <CardTitle className="flex items-center justify-between">
           {title}
           <span className="text-sm font-normal text-muted-foreground">
-            {data.length > 0 && `${formatValue(data[data.length - 1][sensorType])}${unit}`}
+            {data.length > 0 &&
+              `${formatValue(
+                (data[data.length - 1] as any)[sensorType] as number | null
+              )}${unit}`}
           </span>
         </CardTitle>
       </CardHeader>
@@ -81,10 +96,10 @@ export function SensorChart({ sensorType, title, unit, color, hours = 24 }: Sens
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => formatValue(value)}
+                tickFormatter={(value) => formatValue(value as number)}
               />
               <Tooltip
-                formatter={(value: number) => [formatValue(value), unit]}
+                formatter={(value: number | null | undefined) => [formatValue(value), unit]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]?.payload?.fullTime) {
                     return new Date(payload[0].payload.fullTime).toLocaleString();

@@ -30,6 +30,7 @@ type PestImageRecord = {
   id: SoilData["id"];
   monitored_at: SoilData["monitored_at"];
   pest_image_url: string | null;
+  pest_severity?: string | null;
 };
 
 interface PestAlert {
@@ -51,6 +52,7 @@ export function PestDetectionSection() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<PestImageRecord | null>(null);
   const [imageLoadErrorIds, setImageLoadErrorIds] = useState<Record<string, boolean>>({});
+  const [pestSeverities, setPestSeverities] = useState<Record<string, string>>({});
 
   const recentAlerts: PestAlert[] = [
     {
@@ -128,6 +130,21 @@ export function PestDetectionSection() {
 
   useEffect(() => {
     let isMounted = true;
+    const BACKEND_URL = 'https://agribuddy-backend.onrender.com';
+
+    const fetchPestSeverity = async (imageUrl: string): Promise<string | null> => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/pest-severity?image_url=${encodeURIComponent(imageUrl)}`);
+        if (!response.ok) {
+          return null;
+        }
+        const data = await response.json();
+        return data.pest_severity || null;
+      } catch (err) {
+        console.error("Error fetching pest severity:", err);
+        return null;
+      }
+    };
 
     const fetchPestImages = async () => {
       try {
@@ -146,8 +163,24 @@ export function PestDetectionSection() {
           throw error;
         }
 
-        if (isMounted) {
-          setPestImages((data ?? []) as PestImageRecord[]);
+        if (isMounted && data) {
+          const images = (data ?? []) as PestImageRecord[];
+          setPestImages(images);
+
+          // Fetch severity for each image
+          const severityPromises = images.map(async (record) => {
+            if (record.pest_image_url) {
+              const severity = await fetchPestSeverity(record.pest_image_url);
+              if (severity && isMounted) {
+                setPestSeverities((prev) => ({
+                  ...prev,
+                  [String(record.id)]: severity,
+                }));
+              }
+            }
+          });
+
+          await Promise.all(severityPromises);
         }
       } catch (err) {
         if (isMounted) {
@@ -389,8 +422,20 @@ export function PestDetectionSection() {
                                 Camera Pest Detection
                               </span>
                             </div>
-                            <Badge className={getSeverityColor("medium")}>
-                              medium risk
+                            <Badge className={getSeverityColor(
+                              (() => {
+                                const severity = pestSeverities[recordId]?.toUpperCase() ?? "MEDIUM";
+                                if (severity === "LOW") return "low";
+                                if (severity === "HIGH") return "high";
+                                return "medium";
+                              })()
+                            )}>
+                              {(() => {
+                                const severity = pestSeverities[recordId]?.toUpperCase() ?? "MEDIUM";
+                                if (severity === "LOW") return "low risk";
+                                if (severity === "HIGH") return "high risk";
+                                return "medium risk";
+                              })()}
                             </Badge>
                           </div>
 
@@ -459,8 +504,20 @@ export function PestDetectionSection() {
                                 Camera Pest Detection
                               </span>
                             </div>
-                            <Badge className={getSeverityColor("medium")}>
-                              medium risk
+                            <Badge className={getSeverityColor(
+                              (() => {
+                                const severity = pestSeverities[recordId]?.toUpperCase() ?? "MEDIUM";
+                                if (severity === "LOW") return "low";
+                                if (severity === "HIGH") return "high";
+                                return "medium";
+                              })()
+                            )}>
+                              {(() => {
+                                const severity = pestSeverities[recordId]?.toUpperCase() ?? "MEDIUM";
+                                if (severity === "LOW") return "low risk";
+                                if (severity === "HIGH") return "high risk";
+                                return "medium risk";
+                              })()}
                             </Badge>
                           </div>
 

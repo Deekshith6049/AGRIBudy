@@ -20,25 +20,25 @@ const Index = () => {
   // Real-time sensor data from Supabase
   const { data: sensorDataRaw, loading, error, isConnected, lastUpdated } = useSensorData();
 
-  // Transform data to match component interface
+  // Transform data to match component interface, using latest resolved values
   const sensorData = sensorDataRaw ? {
     temperature: sensorDataRaw.temperature,
     humidity: sensorDataRaw.humidity,
     soilMoisture: sensorDataRaw.soil_moisture,
-    ph: 6.8, // Default value since this column doesn't exist
-    nitrogen: 75, // Default value since this column doesn't exist
-    phosphorus: 45, // Default value since this column doesn't exist
-    potassium: 200, // Default value since this column doesn't exist
-    lightIntensity: 35000, // Default value since this column doesn't exist
+    ph: sensorDataRaw.soil_ph,
+    nitrogen: sensorDataRaw.nitrogen,
+    phosphorus: sensorDataRaw.phosphorus,
+    potassium: sensorDataRaw.potassium,
+    lightIntensity: 35000, // Synthetic value (no sensor yet)
   } : {
-    temperature: 0,
-    humidity: 0,
-    soilMoisture: 0,
-    ph: 6.8,
-    nitrogen: 75,
-    phosphorus: 45,
-    potassium: 200,
-    lightIntensity: 35000,
+    temperature: null,
+    humidity: null,
+    soilMoisture: null,
+    ph: null,
+    nitrogen: null,
+    phosphorus: null,
+    potassium: null,
+    lightIntensity: null,
   };
 
   const renderActiveSection = () => {

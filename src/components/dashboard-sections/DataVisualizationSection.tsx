@@ -90,14 +90,6 @@ export function DataVisualizationSection() {
               color="#8b5cf6"
               hours={timeRange}
             />
-            <div className="lg:col-span-2">
-              <Card>
-                <CardContent className="p-6 text-center text-muted-foreground">
-                  <p>Additional sensors (pH, nutrients, light intensity) are not available in the current database schema.</p>
-                  <p className="text-sm mt-2">Only temperature, humidity, and soil moisture data is being fetched from Supabase.</p>
-                </CardContent>
-              </Card>
-            </div>
           </div>
         </TabsContent>
 
@@ -110,26 +102,39 @@ export function DataVisualizationSection() {
               color="#8b5cf6"
               hours={timeRange}
             />
-            <div className="lg:col-span-1">
-              <Card>
-                <CardContent className="p-6 text-center text-muted-foreground">
-                  <p>Soil pH data is not available in the current database schema.</p>
-                </CardContent>
-              </Card>
-            </div>
+            <SensorChart
+              sensorType="soil_ph"
+              title="Soil pH"
+              unit="pH"
+              color="#22c55e"
+              hours={timeRange}
+            />
           </div>
         </TabsContent>
 
         <TabsContent value="nutrients" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="lg:col-span-2">
-              <Card>
-                <CardContent className="p-6 text-center text-muted-foreground">
-                  <p>Nutrient data (Nitrogen, Phosphorus, Potassium) is not available in the current database schema.</p>
-                  <p className="text-sm mt-2">The Soil_data table only contains: id, temperature, humidity, and soil_moisture columns.</p>
-                </CardContent>
-              </Card>
-            </div>
+            <SensorChart
+              sensorType="nitrogen"
+              title="Nitrogen (N)"
+              unit="ppm"
+              color="#0ea5e9"
+              hours={timeRange}
+            />
+            <SensorChart
+              sensorType="phosphorus"
+              title="Phosphorus (P)"
+              unit="ppm"
+              color="#f97316"
+              hours={timeRange}
+            />
+            <SensorChart
+              sensorType="potassium"
+              title="Potassium (K)"
+              unit="ppm"
+              color="#e11d48"
+              hours={timeRange}
+            />
           </div>
         </TabsContent>
       </Tabs>

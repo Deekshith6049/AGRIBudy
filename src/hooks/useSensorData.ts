@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 
-type SensorData = Tables<'Soil_data'>;
+type RawSoilData = Tables<'Soil_data'>;
+
+interface SensorData {
+  temperature: number | null;
+  humidity: number | null;
+  soil_moisture: number | null;
+  soil_ph: number | null;
+  nitrogen: number | null;
+  phosphorus: number | null;
+  potassium: number | null;
+}
 
 interface UseSensorDataReturn {
   data: SensorData | null;
@@ -22,27 +32,110 @@ export function useSensorData(): UseSensorDataReturn {
   useEffect(() => {
     let mounted = true;
 
-    // Initial data fetch
     const fetchLatestData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const { data: sensorData, error: fetchError } = await supabase
-          .from('Soil_data')
-          .select('*')
-          .order('monitored_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const [
+          { data: tempRow, error: tempError },
+          { data: humRow, error: humError },
+          { data: moistureRow, error: moistureError },
+          { data: phRow, error: phError },
+          { data: nRow, error: nError },
+          { data: pRow, error: pError },
+          { data: kRow, error: kError },
+        ] = await Promise.all([
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('temperature, monitored_at')
+            .not('temperature', 'is', null)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('humidity, monitored_at')
+            .not('humidity', 'is', null)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('soil_moisture, monitored_at')
+            .not('soil_moisture', 'is', null)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('soil_ph, monitored_at')
+            .not('soil_ph', 'is', null)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('nitrogen, monitored_at')
+            .not('nitrogen', 'is', null)
+            .neq('nitrogen', -1)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('phosphorus, monitored_at')
+            .not('phosphorus', 'is', null)
+            .neq('phosphorus', -1)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from<RawSoilData>('Soil_data')
+            .select('potassium, monitored_at')
+            .not('potassium', 'is', null)
+            .neq('potassium', -1)
+            .order('monitored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
-        if (fetchError) {
-          throw fetchError;
+        const firstError =
+          tempError || humError || moistureError || phError || nError || pError || kError;
+
+        if (firstError) {
+          throw firstError;
         }
 
+        const resolved: SensorData = {
+          temperature: (tempRow as any)?.temperature ?? null,
+          humidity: (humRow as any)?.humidity ?? null,
+          soil_moisture: (moistureRow as any)?.soil_moisture ?? null,
+          soil_ph: (phRow as any)?.soil_ph ?? null,
+          nitrogen: (nRow as any)?.nitrogen ?? null,
+          phosphorus: (pRow as any)?.phosphorus ?? null,
+          potassium: (kRow as any)?.potassium ?? null,
+        };
+
+        const timestamps: string[] = [
+          (tempRow as any)?.monitored_at,
+          (humRow as any)?.monitored_at,
+          (moistureRow as any)?.monitored_at,
+          (phRow as any)?.monitored_at,
+          (nRow as any)?.monitored_at,
+          (pRow as any)?.monitored_at,
+          (kRow as any)?.monitored_at,
+        ].filter(Boolean);
+
+        const latestTimestamp =
+          timestamps.length > 0
+            ? timestamps.sort((a, b) => (a > b ? 1 : -1))[timestamps.length - 1]
+            : null;
+
         if (mounted) {
-          setData(sensorData);
+          setData(resolved);
           setIsConnected(true);
-          setLastUpdated(new Date().toISOString());
+          setLastUpdated(latestTimestamp ?? null);
         }
       } catch (err) {
         if (mounted) {
@@ -66,15 +159,9 @@ export function useSensorData(): UseSensorDataReturn {
           schema: 'public',
           table: 'Soil_data'
         },
-        (payload) => {
+        () => {
           if (mounted) {
-            console.log('Real-time update received:', payload);
-            
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              setData(payload.new as SensorData);
-              setIsConnected(true);
-              setLastUpdated(new Date().toISOString());
-            }
+            fetchLatestData();
           }
         }
       )
